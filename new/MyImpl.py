@@ -73,7 +73,6 @@ sentences = file.readlines()
 sentencesAndTags = []
 sentenceCount = 0
 for sentence in sentences:
-    sentenceCount = sentenceCount + 1
     print("Tagging Progress: ", str(sentenceCount) + "/" + str(len(sentences)))
     if sentenceCount == MAX_SENTENCE_COUNT:
         break
@@ -117,6 +116,7 @@ for sentence in sentences:
             print(word)
         i = i + 1
     sentencesAndTags.append((sentence, tags))
+    sentenceCount = sentenceCount + 1
 
 print("TAGGING FINISHED.")
 
