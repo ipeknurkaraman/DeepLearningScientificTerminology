@@ -5,8 +5,6 @@ import string
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
-from glove.EmbeddingLoader import EmbeddingLoader
-from keras_contrib.layers import CRF
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
@@ -20,16 +18,18 @@ from tensorflow import keras
 from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
 from keras.models import load_model
 
-GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
-SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
+# GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
+# SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
+# FIELD_NAME='biology'
+from new.fasttext.FastTextEmbeddingLoader import FastTextEmbeddingLoader
+from keras_contrib.layers import CRF
+
+GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/tubaDictionary/Biology_tr.txt'
+SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology_tr.txt'
 FIELD_NAME='biology'
 
-# GOLD_TERMS_DATASET_FILE_PATH = '/home/ikaraman/Desktop/oxfordDictionary/chemistry.txt'
-# SENTENCES_DATASET = '/archive/EnglishSentencesDataset/Chemistry.txt'
-# FIELD_NAME = 'chemistry'
-
-MAX_SENTENCE_COUNT = 40000
-EPOCH = 5
+MAX_SENTENCE_COUNT=10000
+EPOCH=5
 
 ################# DEFINE TAGS #####################
 BILOU_TAGS = ["B", "I", "L", "O", "U"]
@@ -46,7 +46,7 @@ dataset2GramTerms = []
 dataset3GramTerms = []
 dataset4GramTerms = []
 termsDatasetFile = open(GOLD_TERMS_DATASET_FILE_PATH, 'r')
-goldTermCount = 0
+goldTermCount=0
 for term in termsDatasetFile.readlines():
     # if goldTermCount==2000:
     #     break
@@ -54,7 +54,7 @@ for term in termsDatasetFile.readlines():
         term = term.translate(str.maketrans('', '', string.punctuation)).lower().strip()
         if len(term.strip()) < 3:
             continue
-        goldTermCount = goldTermCount + 1
+        goldTermCount=goldTermCount+1
         ## TODO replace numbers like (1849-1936)
         wordCount = len(term.split())
         if wordCount is 1:
@@ -137,8 +137,8 @@ for sentencesAndTags in trainingSet:
     wordCount = len(str(sentencesAndTags[0]).split())
     if wordCount > maxLength:
         maxLength = wordCount
-if maxLength > 250:
-    maxLength = 250
+if maxLength>250:
+    maxLength=250
 
 ########################### TRAININING PREPARATION ############################
 # encode sentences
@@ -162,9 +162,12 @@ padded_tags = pad_sequences(maxlen=maxLength, sequences=trainingTags, padding="p
 padded_tags = [to_categorical(i, num_classes=n_tags) for i in padded_tags]
 
 ###################### EMBEDDING ##############################
-embeddingLoader = EmbeddingLoader()
-embedding_matrix = embeddingLoader.getEmbeddingMatrix('/archive/glove.6B.300d.txt', t)
+embeddingLoader = FastTextEmbeddingLoader()
+embedding_matrix = embeddingLoader.getEmbeddingMatrix('/archive/FastTextTurkishVectors/cc.tr.300.vec', t)
 print("Embedding matrix created.")
+
+# embeddingLoader = Test()
+# embeddingLoader.getEmbeddingMatrix('/archive/trmodel',t)
 
 ############### MODEL CREATION #############################
 
@@ -172,32 +175,29 @@ print("Embedding matrix created.")
 model = Sequential()
 # add embedding layer to model
 model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=maxLength, trainable=False))
+# bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
 # bidirectionalLSTMLayer = LSTM(units=200, return_sequences=True, recurrent_dropout=0.1)  # variational biLSTM
 bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
+# bidirectionalLSTMLayer2=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
 outputLayer = TimeDistributed(Dense(n_tags, activation="softmax"))
-
-
 #
+crf=CRF(len(BILOU_TAGS))
 model.add(bidirectionalLSTMLayer)
-## TODO iki tane bidirectional layer nasıl olur ?
 # model.add(bidirectionalLSTMLayer2)
 model.add(outputLayer)
+model.add(crf)
 
 evaluator = Evaluater()
 opt = keras.optimizers.Adam(learning_rate=0.001)
-### CRFsiz network için
-# model.compile(optimizer=opt, loss="categorical_crossentropy",
-#               metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m])
-### CRF li network için
-model.compile(optimizer=opt, loss='categorical_crossentropy',
-              metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m])
+model.compile(optimizer=opt, loss=crf.loss_function,
+              metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m,crf.accuracy])
 from seqeval.callbacks import F1Metrics
 
 id2label = {0: 'B', 1: 'I', 2: 'L', 3: 'O', 4: 'U'}
 callbacks = [F1Metrics(id2label)]
 
-history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=100, epochs=EPOCH, validation_split=0.1,
-                    verbose=1,
+### TODO EPOCH
+history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=100, epochs=EPOCH, validation_split=0.1, verbose=1,
                     callbacks=callbacks)
 print("Model created.")
 
@@ -210,8 +210,8 @@ print("Model created.")
 # with open('/archive/LSTMModels/biologyTokenizer.pickle', 'wb') as handle:
 #     pickle.dump(t, handle, protocol=pickle.HIGHEST_PROTOCOL)
 # tokenizer_json = t.to_json()
-# # with open('/archive/LSTMModels/biologyTokenizer.json', 'w', encoding='utf-8') as f:
-# #     f.write(json.dumps(tokenizer_json, ensure_ascii=False))
+# with open('/archive/LSTMModels/biologyTokenizer.json', 'w', encoding='utf-8') as f:
+#     f.write(json.dumps(tokenizer_json, ensure_ascii=False))
 
 ########################### TEST PREPERATION ########################
 # encode sentences
@@ -257,36 +257,39 @@ for pred in y_pred:
     testSentenceWords = testSentence.split()
     tagPredictions = y_pred[i]
     j = 0
-    previousTag = ""
+    previousTag=""
     for tagPrediction in tagPredictions:
         term = ""
         if 'B' == BILOU_TAGS[tagPrediction]:
             extractedTerms.append(testSentenceWords[j])
-            previousTag = 'B'
+            previousTag='B'
         if 'I' == BILOU_TAGS[tagPrediction]:
-            if previousTag in ['B', 'I']:
+            if previousTag in ['B','I']:
                 lastWord = extractedTerms[len(extractedTerms) - 1]
-                extractedTerms[len(extractedTerms) - 1] = lastWord + " " + (testSentenceWords[j])
-            previousTag = 'I'
+                extractedTerms[len(extractedTerms) - 1] = lastWord + " "+(testSentenceWords[j])
+            else:
+                extractedTerms.append(testSentenceWords[j])
+            previousTag='I'
         if 'L' == BILOU_TAGS[tagPrediction]:
-            if previousTag in ['B', 'I']:
+            if previousTag in ['B','I']:
                 lastWord = extractedTerms[len(extractedTerms) - 1]
-                extractedTerms[len(extractedTerms) - 1] = lastWord + " " + (testSentenceWords[j])
-            previousTag = 'L'
+                extractedTerms[len(extractedTerms) - 1] = lastWord + " "+(testSentenceWords[j])
+            else:
+                extractedTerms.append(testSentenceWords[j])
+            previousTag='L'
         if 'U' == BILOU_TAGS[tagPrediction]:
             extractedTerms.append(testSentenceWords[j])
-            previousTag = 'U'
-        j = j + 1
-    i = i + 1
+            previousTag='U'
+        j=j+1
+    i=i+1
 
-extractedTerms = set(extractedTerms)
+extractedTerms=set(extractedTerms)
 print(set(extractedTerms))
-outputFilePath = '/home/ikaraman/Desktop/ExtractedTermsWithLSTM/' + FIELD_NAME + 'Terms.txt'
+outputFilePath = '/home/ikaraman/Desktop/ExtractedTermsWithLSTM/' + FIELD_NAME + 'Terms_tr.txt'
 with open(outputFilePath, 'w') as outputFile:
     for term in extractedTerms:
-        outputFile.write(term + '\n')
+        outputFile.write(term+'\n')
 
 print("Written file path:",outputFilePath)
 print("Extracted term count:", len(extractedTerms))
 print("Training sentence count:", len(trainingSet))
-print("Epoch:",EPOCH)

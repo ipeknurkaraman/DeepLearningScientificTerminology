@@ -5,8 +5,6 @@ import string
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
-from fasttext.FastTextEmbeddingLoader import FastTextEmbeddingLoader
-from fasttext.Test import Test
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Flatten
@@ -23,12 +21,13 @@ from keras.models import load_model
 # GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
 # SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
 # FIELD_NAME='biology'
+from new.fasttext.FastTextEmbeddingLoader import FastTextEmbeddingLoader
 
 GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/tubaDictionary/Biology_tr.txt'
 SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology_tr.txt'
 FIELD_NAME='biology'
 
-MAX_SENTENCE_COUNT=70000
+MAX_SENTENCE_COUNT=40000
 EPOCH=5
 
 ################# DEFINE TAGS #####################
@@ -283,8 +282,11 @@ for pred in y_pred:
 
 extractedTerms=set(extractedTerms)
 print(set(extractedTerms))
-with open('/home/ikaraman/Desktop/ExtractedTermsWithLSTM/'+FIELD_NAME+'Terms_tr.txt', 'w') as outputFile:
+outputFilePath = '/home/ikaraman/Desktop/ExtractedTermsWithLSTM/' + FIELD_NAME + 'Terms_tr.txt'
+with open(outputFilePath, 'w') as outputFile:
     for term in extractedTerms:
         outputFile.write(term+'\n')
 
-print("Finished with term count:",len(extractedTerms))
+print("Written file path:",outputFilePath)
+print("Extracted term count:", len(extractedTerms))
+print("Training sentence count:", len(trainingSet))

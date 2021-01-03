@@ -2,6 +2,7 @@ import json
 
 import numpy
 import string
+from keras_contrib.layers import CRF
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils import to_categorical
@@ -20,13 +21,13 @@ from tensorflow import keras
 from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
 from keras.models import load_model
 
-GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
-SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
-FIELD_NAME='biology'
+# GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
+# SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
+# FIELD_NAME='biology'
 
-# GOLD_TERMS_DATASET_FILE_PATH = '/home/ikaraman/Desktop/oxfordDictionary/chemistry.txt'
-# SENTENCES_DATASET = '/archive/EnglishSentencesDataset/Chemistry.txt'
-# FIELD_NAME = 'chemistry'
+GOLD_TERMS_DATASET_FILE_PATH = '/home/ikaraman/Desktop/tubaDictionary/ComputerScience.txt'
+SENTENCES_DATASET = '/archive/EnglishSentencesDataset/ComputerScience.txt'
+FIELD_NAME = 'computer'
 
 MAX_SENTENCE_COUNT = 40000
 EPOCH = 5
@@ -174,29 +175,28 @@ model = Sequential()
 model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=maxLength, trainable=False))
 # bidirectionalLSTMLayer = LSTM(units=200, return_sequences=True, recurrent_dropout=0.1)  # variational biLSTM
 bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
-outputLayer = TimeDistributed(Dense(n_tags, activation="softmax"))
+outputLayer = TimeDistributed(Dense(n_tags, activation="tanh"))
 
-
-#
+crf=CRF(len(BILOU_TAGS))
 model.add(bidirectionalLSTMLayer)
 ## TODO iki tane bidirectional layer nasıl olur ?
 # model.add(bidirectionalLSTMLayer2)
 model.add(outputLayer)
-
+model.add(crf)
 evaluator = Evaluater()
 opt = keras.optimizers.Adam(learning_rate=0.001)
 ### CRFsiz network için
 # model.compile(optimizer=opt, loss="categorical_crossentropy",
 #               metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m])
 ### CRF li network için
-model.compile(optimizer=opt, loss='categorical_crossentropy',
-              metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m])
+model.compile(optimizer="rmsprop", loss=crf.loss_function,
+              metrics=['acc', evaluator.f1_m, evaluator.precision_m, evaluator.recall_m,crf.accuracy])
 from seqeval.callbacks import F1Metrics
 
 id2label = {0: 'B', 1: 'I', 2: 'L', 3: 'O', 4: 'U'}
 callbacks = [F1Metrics(id2label)]
 
-history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=100, epochs=EPOCH, validation_split=0.1,
+history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=20, epochs=EPOCH, validation_split=0.1,
                     verbose=1,
                     callbacks=callbacks)
 print("Model created.")
