@@ -175,10 +175,12 @@ model = Sequential()
 model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=maxLength, trainable=False))
 # bidirectionalLSTMLayer = LSTM(units=200, return_sequences=True, recurrent_dropout=0.1)  # variational biLSTM
 bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
+bidirectionalLSTMLayer1=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
 outputLayer = TimeDistributed(Dense(n_tags, activation="tanh"))
 
 crf=CRF(len(BILOU_TAGS))
 model.add(bidirectionalLSTMLayer)
+model.add(bidirectionalLSTMLayer1)
 ## TODO iki tane bidirectional layer nasıl olur ?
 # model.add(bidirectionalLSTMLayer2)
 model.add(outputLayer)

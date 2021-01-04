@@ -196,7 +196,7 @@ from seqeval.callbacks import F1Metrics
 id2label = {0: 'B', 1: 'I', 2: 'L', 3: 'O', 4: 'U'}
 callbacks = [F1Metrics(id2label)]
 
-history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=100, epochs=EPOCH, validation_split=0.1,
+history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=20, epochs=EPOCH, validation_split=0.1,
                     verbose=1,
                     callbacks=callbacks)
 print("Model created.")

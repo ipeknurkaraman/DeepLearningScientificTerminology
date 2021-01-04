@@ -16,18 +16,18 @@ from keras.layers import Dense
 from evaluation.Evaluater import Evaluater
 from tensorflow import keras
 from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
+from new.fasttext.FastTextEmbeddingLoader import FastTextEmbeddingLoader
 from keras.models import load_model
 
 # GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/oxfordDictionary/biologyOxford.txt'
 # SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology.txt'
 # FIELD_NAME='biology'
-from new.fasttext.FastTextEmbeddingLoader import FastTextEmbeddingLoader
 
-GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/tubaDictionary/Biology_tr.txt'
-SENTENCES_DATASET='/archive/EnglishSentencesDataset/Biology_tr.txt'
-FIELD_NAME='biology'
+GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/tubaDictionary/ComputerScience_tr.txt'
+SENTENCES_DATASET='/archive/EnglishSentencesDataset/ComputerScience_tr.txt'
+FIELD_NAME='computer'
 
-MAX_SENTENCE_COUNT=40000
+MAX_SENTENCE_COUNT=10000
 EPOCH=5
 
 ################# DEFINE TAGS #####################
@@ -175,8 +175,8 @@ model = Sequential()
 # add embedding layer to model
 model.add(Embedding(vocab_size, 300, weights=[embedding_matrix], input_length=maxLength, trainable=False))
 # bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
-# bidirectionalLSTMLayer = LSTM(units=200, return_sequences=True, recurrent_dropout=0.1)  # variational biLSTM
-bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
+bidirectionalLSTMLayer = LSTM(units=200, return_sequences=True, recurrent_dropout=0.1)  # variational biLSTM
+# bidirectionalLSTMLayer=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
 # bidirectionalLSTMLayer2=Bidirectional(LSTM(units=200, return_sequences=True, recurrent_dropout=0.1))  # variational biLSTM
 outputLayer = TimeDistributed(Dense(n_tags, activation="softmax"))
 #
@@ -194,7 +194,7 @@ id2label = {0: 'B', 1: 'I', 2: 'L', 3: 'O', 4: 'U'}
 callbacks = [F1Metrics(id2label)]
 
 ### TODO EPOCH
-history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=100, epochs=EPOCH, validation_split=0.1, verbose=1,
+history = model.fit(padded_docs, numpy.array(padded_tags), batch_size=20, epochs=EPOCH, validation_split=0.1, verbose=1,
                     callbacks=callbacks)
 print("Model created.")
 

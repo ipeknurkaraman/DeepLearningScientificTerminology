@@ -6,8 +6,10 @@
 # termsExtractedFile = open('/home/ikaraman/Desktop/ExtractedTermsWithLSTM/biologyTerms_tr.txt', 'r')
 
 FIELD_NAME="computer"
-termsGoldFile=open("/home/ikaraman/Desktop/tubaDictionary/ComputerScience.txt",'r')
-termsExtractedFile = open('/home/ikaraman/Desktop/ExtractedTermsWithLSTM/'+FIELD_NAME+'Terms.txt', 'r')
+termsGoldFile=open("/home/ikaraman/Desktop/tubaDictionary/ComputerScience_tr.txt",'r')
+termsExtractedFile = open('/home/ikaraman/Desktop/ExtractedTermsWithLSTM/'+FIELD_NAME+'Terms_tr.txt', 'r')
+# termsGoldFile=open("/home/ikaraman/Desktop/tubaDictionary/ComputerScience.txt",'r')
+# termsExtractedFile = open('/home/ikaraman/Desktop/ExtractedTermsWithLSTM/'+FIELD_NAME+'Terms.txt', 'r')
 
 # FIELD_NAME="chemistry"
 # termsGoldFile=open('/home/ikaraman/Desktop/oxfordDictionary/chemistry.txt','r')

@@ -20,7 +20,7 @@ class FastTextEmbeddingLoader:
         embed_size=300
         sd = 1/np.sqrt(embed_size)  # Standard deviation to use
         embedding_matrix = np.random.normal(0, scale=sd, size=[vocab_size, embed_size])
-        embedding_matrix = np.zeros((len(word_index) + 1, 300))
+        # embedding_matrix = np.zeros((len(word_index) + 1, 300))
         for word, i in word_index.items():
             embedding_vector = vocab_and_vectors.get(word)
             # words that cannot be found will be set to 0
