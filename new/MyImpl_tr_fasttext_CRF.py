@@ -25,10 +25,11 @@ from keras.models import load_model
 from keras_contrib.layers import CRF
 
 GOLD_TERMS_DATASET_FILE_PATH='/home/ikaraman/Desktop/tubaDictionary/ComputerScience_tr.txt'
-SENTENCES_DATASET='/archive/EnglishSentencesDataset/ComputerScience_tr.txt'
+# SENTENCES_DATASET='/archive/EnglishSentencesDataset/ComputerScience_tr.txt'
+TRAINING_SENTENCES_DATASET='/archive/partitionedDataset/ComputerScience_training_tr.txt'
+TEST_SENTENCES_DATASET='/archive/partitionedDataset/ComputerScience_test_tr.txt'
 FIELD_NAME='computer'
 
-MAX_SENTENCE_COUNT=40000
 EPOCH=5
 
 ################# DEFINE TAGS #####################
@@ -68,16 +69,16 @@ for term in termsDatasetFile.readlines():
 
 # ################ READ SENTENCES ####################
 # file = open('/home/ikaraman/Desktop/myfile.txt', 'r')
-file = open(SENTENCES_DATASET, 'r')
-sentences = file.readlines()
+trainingFile = open(TRAINING_SENTENCES_DATASET, 'r')
+testFile = open(TEST_SENTENCES_DATASET, 'r')
+trainingSentences = trainingFile.readlines()
+testSentences = testFile.readlines()
 
 ################### TAGGING #############################
-sentencesAndTags = []
-sentenceCount = 0
-for sentence in sentences:
-    print("Tagging Progress: ", str(sentenceCount) + "/" + str(len(sentences)))
-    if sentenceCount == MAX_SENTENCE_COUNT:
-        break
+trainingSentencesAndTags = []
+sentenceCount=0
+for sentence in trainingSentences:
+    print("Tagging Progress: ", str(sentenceCount) + "/" + str(len(trainingSentences)))
     sentence = sentence.translate(str.maketrans('', '', string.punctuation)).lower().strip()
     ######## if one word in the sentence, discard
     words = sentence.split()
@@ -117,23 +118,63 @@ for sentence in sentences:
         else:
             print(word)
         i = i + 1
-    sentencesAndTags.append((sentence, tags))
+    trainingSentencesAndTags.append((sentence, tags))
     sentenceCount = sentenceCount + 1
 
-print("TAGGING FINISHED.")
+print("TRAINING TAGGING FINISHED.")
+######### TEST TAGGING
 
-# split data
-numpy.random.shuffle(sentencesAndTags)
-trainingSet, validationSet, testSet = numpy.split(sentencesAndTags,
-                                                  [int(len(sentencesAndTags) * 0.8), int(len(sentencesAndTags) * 0.9)])
+testSentencesAndTags = []
+sentenceCount=0
+for sentence in testSentences:
+    print("Tagging Progress: ", str(sentenceCount) + "/" + str(len(testSentences)))
+    sentence = sentence.translate(str.maketrans('', '', string.punctuation)).lower().strip()
+    ######## if one word in the sentence, discard
+    words = sentence.split()
+    if len(words) == 1:
+        continue
+    #### Add <SOS> to begining, Add <EOS> to end
+    sentence = " <SOS> " + sentence + " <EOS>"
+    # +2 for SOS and EOS
+    # initialize BILOU tags as all non terms
+    tags = ['O' for i in range(len(words) + 2)]
 
-trainingSet = numpy.concatenate([trainingSet, validationSet])
-print("Training set:", len(trainingSet))
-print("Test set:", len(testSet))
+    copySentence = str(sentence)
+    for term4gram in dataset4GramTerms:
+        term4gram = " " + str(term4gram) + str(" ")
+        if term4gram in copySentence:
+            copySentence = copySentence.replace(term4gram, " <B> <I> <I> <L> ")
+    for term3gram in dataset3GramTerms:
+        term3gram = " " + str(term3gram) + str(" ")
+        if term3gram in copySentence:
+            copySentence = copySentence.replace(term3gram, " <B> <I> <L> ")
+    for term2gram in dataset2GramTerms:
+        term2gram = " " + str(term2gram) + str(" ")
+        if term2gram in copySentence:
+            copySentence = copySentence.replace(term2gram, " <B> <L> ")
+    for term1gram in dataset1GramTerms:
+        term1gram = " " + str(term1gram) + str(" ")
+        if term1gram in copySentence:
+            copySentence = copySentence.replace(term1gram, " <U> ")
+
+    # +2 for SOS and EOS
+    # initialize BILOU tags as all non terms
+    tags = ['O' for i in range(len(words) + 2)]
+    i = 0
+    for word in copySentence.split():
+        if word in ["<B>", "<I>", "<L>", "<U>"]:
+            tags[i] = word.replace("<", "").replace(">", "")
+        else:
+            print(word)
+        i = i + 1
+    testSentencesAndTags.append((sentence, tags))
+    sentenceCount = sentenceCount + 1
+
+print("TEST TAGGING FINISHED.")
 
 # find max sentence length
 maxLength = 0
-for sentencesAndTags in trainingSet:
+for sentencesAndTags in trainingSentencesAndTags:
     wordCount = len(str(sentencesAndTags[0]).split())
     if wordCount > maxLength:
         maxLength = wordCount
@@ -142,7 +183,7 @@ if maxLength>250:
 
 ########################### TRAININING PREPARATION ############################
 # encode sentences
-trainingDocs = [i[0] for i in trainingSet]
+trainingDocs = [i[0] for i in trainingSentencesAndTags]
 # prepare tokenizer
 # encode unknown words as 1
 t = Tokenizer(oov_token=1)
@@ -152,7 +193,7 @@ vocab_size = len(t.word_index) + 1
 training_encoded_docs = t.texts_to_sequences(trainingDocs)
 print(training_encoded_docs)
 # encode tags
-trainingTags = [[tag2idx[w] for w in s] for s in [x[1] for x in trainingSet]]
+trainingTags = [[tag2idx[w] for w in s] for s in [x[1] for x in trainingSentencesAndTags]]
 
 # pad documents to a max length of words
 padded_docs = pad_sequences(training_encoded_docs, maxlen=maxLength, padding='post')
@@ -215,12 +256,12 @@ print("Model created.")
 
 ########################### TEST PREPERATION ########################
 # encode sentences
-testDocs = [i[0] for i in testSet]
+testDocs = [i[0] for i in testSentencesAndTags]
 # integer encode the documents
 test_encoded_docs = t.texts_to_sequences(testDocs)
 print(test_encoded_docs)
 # encode tags
-testTags = [[tag2idx[w] for w in s] for s in [x[1] for x in testSet]]
+testTags = [[tag2idx[w] for w in s] for s in [x[1] for x in testSentencesAndTags]]
 
 # pad documents to a max length of words
 test_padded_docs = pad_sequences(test_encoded_docs, maxlen=maxLength, padding='post')
@@ -267,15 +308,15 @@ for pred in y_pred:
             if previousTag in ['B','I']:
                 lastWord = extractedTerms[len(extractedTerms) - 1]
                 extractedTerms[len(extractedTerms) - 1] = lastWord + " "+(testSentenceWords[j])
-            else:
-                extractedTerms.append(testSentenceWords[j])
+            # else:
+            #     extractedTerms.append(testSentenceWords[j])
             previousTag='I'
         if 'L' == BILOU_TAGS[tagPrediction]:
             if previousTag in ['B','I']:
                 lastWord = extractedTerms[len(extractedTerms) - 1]
                 extractedTerms[len(extractedTerms) - 1] = lastWord + " "+(testSentenceWords[j])
-            else:
-                extractedTerms.append(testSentenceWords[j])
+            # else:
+            #     extractedTerms.append(testSentenceWords[j])
             previousTag='L'
         if 'U' == BILOU_TAGS[tagPrediction]:
             extractedTerms.append(testSentenceWords[j])
@@ -292,4 +333,5 @@ with open(outputFilePath, 'w') as outputFile:
 
 print("Written file path:",outputFilePath)
 print("Extracted term count:", len(extractedTerms))
-print("Training sentence count:", len(trainingSet))
+print("Training sentence count:", len(trainingSentencesAndTags))
+print("Test sentence count:", len(testSentencesAndTags))
